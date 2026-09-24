@@ -6,7 +6,10 @@ from bot.middlewares.db_i18n import DatabaseAndI18nMiddleware
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    )
 
     if not config.bot_token or config.bot_token == "YOUR_BOT_TOKEN":
         logging.error("BOT_TOKEN is not set properly in .env")

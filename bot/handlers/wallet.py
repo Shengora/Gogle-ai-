@@ -1,6 +1,6 @@
 import asyncio
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -30,24 +30,26 @@ async def connection_polling(
             wallet_address = connector.account.address
             # Save to database
             async with session_maker() as session:
-                user = await session.scalar(select(User).where(User.tg_id == user_tg_id))
-                if user:
+                db_user = await session.scalar(select(User).where(User.tg_id == user_tg_id))
+                if db_user:
                     # Store as raw user-friendly address string (simplified)
-                    user.wallet_address = wallet_address
+                    db_user.wallet_address = wallet_address
                     await session.commit()
 
                 # Fetch lang to answer correctly
-                lang = user.language if user else "en"
+                lang = db_user.language if db_user else "en"
                 await bot.send_message(chat_id, _("wallet_connected", lang, address=wallet_address))
         else:
             # Polling timeout, could notify user
             pass
     except UserRejectsError:
-        # User rejected the connection
-        pass
+        import logging
+        logging.info(f"User {user_tg_id} rejected the wallet connection.")
+        await bot.send_message(chat_id, "Wallet connection rejected.")
     except Exception as e:
-        # Generic error
-        print(f"Error in polling: {e}")
+        import logging
+        logging.error(f"Error in polling for user {user_tg_id}: {e}")
+        await bot.send_message(chat_id, "An error occurred while connecting your wallet.")
 
 
 @router.callback_query(F.data == "menu_wallet")

@@ -17,6 +17,19 @@ def get_market_item_keyboard(
     return builder.as_markup()
 
 
+def get_my_nft_item_keyboard(
+        gift_id: int,
+        lang: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="Withdraw NFT",
+            callback_data=f"withdraw_{gift_id}"
+        )
+    )
+    return builder.as_markup()
+
+
 def get_inventory_item_keyboard(
         nft_address: str,
         lang: str,

@@ -103,16 +103,41 @@ class Transaction(Base):
     listing_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("listings.id"), nullable=True)
     buyer_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id"), index=True)
+        BigInteger, ForeignKey("users.id"), index=True, nullable=True)
     seller_id: Mapped[int] = mapped_column(
-        BigInteger, ForeignKey("users.id"), index=True)
+        BigInteger, ForeignKey("users.id"), index=True, nullable=True)
 
     price: Mapped[float] = mapped_column(Float)
     currency: Mapped[str] = mapped_column(String(10))
-    commission_amount: Mapped[float] = mapped_column(Float)
+    commission_amount: Mapped[float] = mapped_column(Float, default=0.0)
 
-    status: Mapped[str] = mapped_column(
-        String(20), default="completed")  # pending, completed, failed
+    # pending, completed, failed, deposit, withdrawal
+    status: Mapped[str] = mapped_column(String(20), default="completed")
+
+    # To track blockchain transaction hashes (boc hash)
+    tx_hash: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now())
+
+
+class WithdrawalRequest(Base):
+    __tablename__ = "withdrawal_requests"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id"), index=True)
+    gift_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("gifts.id"), nullable=True)
+
+    # Target address to withdraw to
+    target_address: Mapped[str] = mapped_column(String(100))
+
+    # 'pending', 'approved', 'rejected', 'completed'
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

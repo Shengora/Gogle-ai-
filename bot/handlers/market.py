@@ -82,8 +82,8 @@ async def process_sell_price(
     gift = result.scalar_one_or_none()
 
     # 2. If not, fetch it from TonAPI and save to DB (Import)
+    client = TonAPIClient(config.tonapi_key)
     if not gift:
-        client = TonAPIClient(config.tonapi_key)
         item = await client.get_nft_item(nft_address)
         if not item:
             await message.answer("Error fetching NFT details from TonAPI.")
@@ -108,23 +108,93 @@ async def process_sell_price(
         await state.clear()
         return
 
-    listing = Listing(
-        gift_id=gift.id,
-        seller_id=user.id,
-        price=price,
-        currency="TON"
-    )
-    session.add(listing)
-    await session.commit()
+    master_wallet = config.master_wallet_address
+    if not master_wallet:
+        await message.answer("Master wallet is not configured. Selling is currently disabled.")
+        await state.clear()
+        return
 
-    await message.answer(_("listing_created", lang, price=price))
+    # To sell a real Web3 NFT, the user must transfer it to the bot's master wallet
+    from bot.services.tonconnect_client import TonConnectService
+    import time
+
+    tc_service = TonConnectService()
+    connector = tc_service.get_connector(message.from_user.id)
+    is_connected = await connector.restore_connection()
+    if not is_connected:
+        await message.answer("Wallet connection lost. Please reconnect.")
+        await state.clear()
+        return
+
+    # Payload for NFT Transfer
+    # Target address is the NFT address itself.
+    # The message body contains the transfer opcode, query_id, new_owner, etc.
+    # We construct a basic dict structure for the TonConnect message
+    # Opcode for NFT transfer: 0x5fcc3d14
+
+    # We need a proper BOC payload. Since constructing arbitrary BOCs without an SDK like tonpy/tonsdk
+    # in pure Python within TonConnect is complex, we use a placeholder or generic transfer call
+    # In a full production env, you would use tonsdk to build `payload`.
+    # For now, we request 0.05 TON transfer to the NFT contract with a comment or simplified approach.
+
+    # Simplified transfer for demonstration:
+    # A true implementation would serialize the transfer BOC using `tonsdk`.
+    import base64
+    from tonsdk.boc import Cell
+    from tonsdk.utils import Address
+
+    try:
+        # Build the transfer payload body
+        body = Cell()
+        body.bits.write_uint(0x5fcc3d14, 32)  # Opcode for NFT Transfer
+        body.bits.write_uint(0, 64)          # query_id
+        body.bits.write_address(Address(master_wallet))  # new_owner
+        # response_destination (excesses)
+        body.bits.write_address(Address(master_wallet))
+        body.bits.write_bit(False)  # custom_payload
+        body.bits.write_coins(1)  # forward_amount
+        body.bits.write_bit(False)  # forward_payload
+
+        payload_boc = bytes.decode(base64.b64encode(body.to_boc()))
+
+        transaction = {
+            'valid_until': int(time.time() + 3600),
+            'messages': [
+                {
+                    'address': nft_address,
+                    'amount': str(50000000),  # 0.05 TON for gas
+                    'payload': payload_boc
+                }
+            ]
+        }
+
+        await message.answer("Please confirm the NFT transfer transaction in your wallet app.")
+        result = await connector.send_transaction(transaction)
+
+        if result and 'boc' in result:
+            listing = Listing(
+                gift_id=gift.id,
+                seller_id=user.id,
+                price=price,
+                currency="TON"
+            )
+            session.add(listing)
+            await session.commit()
+            await message.answer(_("listing_created", lang, price=price) + f"\n(Tx: {result['boc'][:10]}...)")
+        else:
+            await message.answer("Transaction failed or rejected. Listing not created.")
+
+    except Exception as e:
+        await message.answer(f"Error initiating NFT transfer: {str(e)}")
+
     await state.clear()
 
 
 async def process_purchase(session: AsyncSession,
                            buyer: User, listing_id: int) -> tuple[bool, str]:
     result = await session.execute(
-        select(Listing, Gift).join(Gift).where(Listing.id == listing_id, Listing.is_active)
+        select(Listing, Gift).join(Gift).where(
+            Listing.id == listing_id, Listing.is_active)
     )
     row = result.first()
 

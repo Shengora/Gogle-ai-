@@ -1,4 +1,4 @@
-import os
+
 from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     admin_ids: List[int] = Field(default_factory=list)
     tonapi_key: str = ""
     manifest_url: str = ""
+    master_wallet_address: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8")
@@ -36,6 +37,9 @@ class Settings(BaseSettings):
 
     @property
     def db_url(self) -> str:
+        # Use sqlite for local development if DB_HOST is sqlite
+        if self.db_host == "sqlite":
+            return "sqlite+aiosqlite:///db.sqlite3"
         return f"postgresql+asyncpg://{
             self.db_user}:{
             self.db_password}@{

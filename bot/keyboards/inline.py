@@ -28,6 +28,12 @@ def get_main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
             callback_data="menu_inventory"))
     builder.row(
         InlineKeyboardButton(
+            text="My DB NFTs (Withdraw)",
+            callback_data="menu_my_nfts"
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
             text=_(
                 "btn_sales",
                 lang),
@@ -39,23 +45,28 @@ def get_main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
             callback_data="menu_balance"))
     builder.row(
         InlineKeyboardButton(
+            text="💎 Deposit TON",
+            callback_data="deposit_ton"),
+        InlineKeyboardButton(
             text="⭐️ Deposit Stars",
-            callback_data="deposit_stars"),
+            callback_data="deposit_stars")
+    )
+    builder.row(
         InlineKeyboardButton(
             text=_(
                 "btn_wallet",
                 lang),
-            callback_data="menu_wallet"))
-    builder.row(
+            callback_data="menu_wallet"),
         InlineKeyboardButton(
             text=_(
                 "btn_language",
                 lang),
-            callback_data="menu_language"),
+            callback_data="menu_language")
+    )
+    builder.row(
         InlineKeyboardButton(
             text=_(
                 "btn_admin",
                 lang),
             callback_data="admin_panel"))
-
     return builder.as_markup()
