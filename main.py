@@ -19,7 +19,8 @@ async def main():
     dp = Dispatcher()
 
     # Register Middlewares
-    dp.update.middleware(DatabaseAndI18nMiddleware())
+    dp.message.middleware(DatabaseAndI18nMiddleware())
+    dp.callback_query.middleware(DatabaseAndI18nMiddleware())
 
     # Register Routers
     from bot.handlers.start import router as start_router
